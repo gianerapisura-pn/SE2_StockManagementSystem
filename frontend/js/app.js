@@ -1498,8 +1498,6 @@ const createStaffBtn = document.getElementById('createStaffBtn');
 if (createStaffBtn) {
   createStaffBtn.addEventListener('click', async () => {
     try {
-      const tempPassword = document.getElementById('staffPassword').value;
-      const repeatPassword = document.getElementById('staffPassword2').value;
       const payload = {
         last_name: document.getElementById('staffLastName').value.trim(),
         first_name: document.getElementById('staffFirstName').value.trim(),
@@ -1508,17 +1506,13 @@ if (createStaffBtn) {
         gender: document.getElementById('staffGender').value,
         phone_number: normalizePhoneNumber(document.getElementById('staffPhone').value.trim()),
         username: document.getElementById('staffUsername').value.trim(),
-        email: document.getElementById('staffEmail').value.trim(),
-        password: tempPassword
+        email: document.getElementById('staffEmail').value.trim()
       };
 
-      if (!payload.last_name || !payload.first_name || !payload.middle_name || !payload.gender || !payload.phone_number || !payload.username || !payload.email || !tempPassword || !repeatPassword) {
+      if (!payload.last_name || !payload.first_name || !payload.middle_name || !payload.gender || !payload.phone_number || !payload.username || !payload.email) {
         return showToast('Complete all required staff account fields.', false);
       }
 
-      if (tempPassword !== repeatPassword) {
-        return showToast('Temporary passwords do not match.', false);
-      }
 
       const emailExists = staffAccountsCache.some((staff) => String(staff.email || '').toLowerCase() === payload.email.toLowerCase());
       if (emailExists) {
@@ -1534,8 +1528,6 @@ if (createStaffBtn) {
         return showToast('Phone number must be 9 digits after +639.', false);
       }
 
-      const passwordPolicyMessage = validatePasswordRules(payload.password);
-      if (passwordPolicyMessage) return showToast(passwordPolicyMessage, false);
 
       const adminPassword = prompt('Enter your admin password to create this staff account:') || '';
       if (!adminPassword) return;
@@ -1547,7 +1539,7 @@ if (createStaffBtn) {
       });
 
       showToast('Staff account created successfully.');
-      ['staffLastName','staffFirstName','staffMiddleName','staffPhone','staffUsername','staffEmail','staffPassword','staffPassword2'].forEach((id) => {
+      ['staffLastName','staffFirstName','staffMiddleName','staffPhone','staffUsername','staffEmail'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.value = '';
       });

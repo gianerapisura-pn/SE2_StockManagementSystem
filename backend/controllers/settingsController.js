@@ -203,7 +203,7 @@ async function getStaffList(_req, res) {
 }
 
 async function createStaffAccount(req, res) {
-  const { admin_password, username, email, password } = req.body;
+  const { admin_password, username, email } = req.body;
   const last_name = String(req.body.last_name || '').trim();
   const first_name = String(req.body.first_name || '').trim();
   const middle_name = String(req.body.middle_name || '').trim();
@@ -215,8 +215,8 @@ async function createStaffAccount(req, res) {
     const stepUpError = await verifyAdminPassword(req, admin_password);
     if (stepUpError) return res.status(401).json({ error: stepUpError });
 
-    if (!last_name || !first_name || !middle_name || !gender || !phone_number || !username || !email || !password) {
-      return res.status(400).json({ error: 'Last name, first name, middle name, gender, phone number, username, email, and password are required.' });
+    if (!last_name || !first_name || !middle_name || !gender || !phone_number || !username || !email) {
+      return res.status(400).json({ error: 'Last name, first name, middle name, gender, phone number, username, and email are required.' });
     }
 
     if (suffix && !VALID_SUFFIXES.has(suffix)) {
@@ -231,8 +231,6 @@ async function createStaffAccount(req, res) {
       return res.status(400).json({ error: 'Phone number must be 9 digits after +639 (example: +639123456789).' });
     }
 
-    const policy = validatePasswordRules(password);
-    if (!policy.ok) return res.status(400).json({ error: policy.message });
 
     const [[existingUser]] = await pool.query(
       'SELECT user_id FROM users WHERE username = ? OR email = ?',
@@ -241,7 +239,8 @@ async function createStaffAccount(req, res) {
     if (existingUser) return res.status(409).json({ error: 'Username or email already exists.' });
 
     const user_id = await generateUserId();
-    const hash = await bcrypt.hash(password, 10);
+    const bootstrapSecret = crypto.randomBytes(24).toString('hex');
+    const hash = await bcrypt.hash(bootstrapSecret, 10);
 
     await pool.query(
       `INSERT INTO users (user_id, role, last_name, first_name, middle_name, suffix, gender, phone_number, username, email, password_hash)
@@ -255,7 +254,7 @@ async function createStaffAccount(req, res) {
       description: `Created staff account for ${username} (${user_id})`
     });
 
-    return res.json({ message: 'Staff account created successfully.', user_id });
+    return res.json({ message: 'Staff account created successfully. Send reset link so staff can set a password.', user_id });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'Username or email already exists.' });
