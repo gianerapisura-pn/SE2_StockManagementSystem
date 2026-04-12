@@ -298,8 +298,8 @@ async function loadHome() {
     if (!activityCache.length) {
       recent.innerHTML = '<p style="color:#8a7c73; margin:14px 0;">No recent activity</p>';
     } else {
-      recent.innerHTML = activityCache.map((entry, index) => `
-        <button class="recent-item-btn" type="button" data-activity-index="${index}">
+      recent.innerHTML = activityCache.map((entry) => `
+        <div class="recent-item-btn" style="cursor: default;">
           <div class="recent-item">
             <div class="recent-left">
               <span class="recent-dot"></span>
@@ -307,19 +307,12 @@ async function loadHome() {
             </div>
             <div class="recent-meta">
               <span class="${recentPillClass(entry.action_type)}">${formatActionLabel(entry.action_type)}</span>
-              <span>Qty: ${entry.quantity || 1}</span>
+              <span>Qty: ${entry.quantity ?? 0}</span>
               <span>${new Date(entry.timestamp).toLocaleString()}</span>
             </div>
           </div>
-        </button>
+        </div>
       `).join('');
-
-      recent.querySelectorAll('[data-activity-index]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const idx = Number(btn.dataset.activityIndex);
-          openActivityDetail(activityCache[idx]);
-        });
-      });
     }
   }
 
@@ -520,7 +513,7 @@ function renderActivityTable(data, page = 1) {
         <td>${formatActivityDate(a.timestamp)}</td>
         <td>${a.item_display || ''}</td>
         <td><span class="status-pill ${actionPillClass(a.action_type)}">${formatActionLabel(a.action_type)}</span></td>
-        <td>${a.quantity || ''}</td>
+        <td>${a.quantity ?? 0}</td>
         <td>${a.sold_price ? formatPeso(a.sold_price) : ''}</td>
       </tr>
     `).join('');
@@ -1631,7 +1624,7 @@ function openActivityDetail(entry) {
   setValue('#adAction', formatActionLabel(entry.action_type));
   setValue('#adDateTime', formatActivityDate(entry.timestamp));
   setValue('#adItem', entry.item_display || '-');
-  setValue('#adQty', entry.quantity || 1);
+  setValue('#adQty', entry.quantity ?? 0);
   setValue('#adSoldPrice', entry.sold_price ? formatPeso(entry.sold_price) : '-');
   setValue('#adDescription', entry.description || '-');
 

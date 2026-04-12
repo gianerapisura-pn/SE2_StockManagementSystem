@@ -73,11 +73,29 @@ async function getRecentActivity(limit = 5) {
      LEFT JOIN items i ON al.item_id = i.item_id
      LEFT JOIN pairs p ON al.pair_id = p.pair_id
      LEFT JOIN brands b ON i.brand_id = b.brand_id
-     WHERE al.action_type NOT IN ('LOGIN', 'LOGOUT', 'REGISTER')
      ORDER BY al.timestamp DESC
      LIMIT ?`,
     [limit]
   );
+
+  const itemIdsMissingQty = rows
+    .filter((row) => (row.quantity === null || row.quantity === undefined) && row.item_id !== null && row.item_id !== undefined)
+    .map((row) => row.item_id);
+  const uniqueIds = [...new Set(itemIdsMissingQty.map((id) => Number(id)).filter((id) => Number.isFinite(id)))];
+
+  const qtyMap = new Map();
+  if (uniqueIds.length) {
+    const placeholders = uniqueIds.map(() => '?').join(', ');
+    const [qtyRows] = await pool.query(
+      `SELECT item_id,
+              COALESCE(SUM(CASE WHEN status = 'AVAILABLE' AND is_deleted = 0 THEN 1 ELSE 0 END), 0) AS available_count
+       FROM pairs
+       WHERE item_id IN (${placeholders})
+       GROUP BY item_id`,
+      uniqueIds
+    );
+    qtyRows.forEach((r) => qtyMap.set(Number(r.item_id), Number(r.available_count || 0)));
+  }
 
   return rows.map((row) => {
     const parts = [];
@@ -86,6 +104,8 @@ async function getRecentActivity(limit = 5) {
     if (row.colorway) parts.push(row.colorway);
     if (row.us_size) parts.push([row.us_size, row.gender].filter(Boolean).join(' '));
 
+    const fallbackQty = (row.item_id !== null && row.item_id !== undefined) ? (qtyMap.get(Number(row.item_id)) ?? 0) : null;
+
     return {
       log_id: row.log_id,
       timestamp: row.timestamp,
@@ -93,7 +113,7 @@ async function getRecentActivity(limit = 5) {
       item_id: row.item_id,
       pair_id: row.pair_id,
       item_display: parts.join(' ').trim(),
-      quantity: toNumber(row.quantity) || 1,
+      quantity: (row.quantity === null || row.quantity === undefined) ? fallbackQty : toNumber(row.quantity),
       sold_price: row.sold_price === null ? null : toNumber(row.sold_price),
       description: row.description || ''
     };

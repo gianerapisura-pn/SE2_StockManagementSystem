@@ -48,6 +48,7 @@ async function logWaitingStockIfNeeded(userId, itemId, itemName, statusInfo) {
     user_id: userId,
     action_type: 'WAITING_STOCK',
     item_id: itemId,
+    quantity: Number.isFinite(Number(statusInfo.available)) ? Math.floor(Number(statusInfo.available)) : null,
     description: `Item moved to waiting stock (${itemName || `Item #${itemId}`})`
   });
 }
