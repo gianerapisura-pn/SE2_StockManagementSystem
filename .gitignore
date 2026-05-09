@@ -26,4 +26,9 @@ build/
 
 # Temporary
 *.tmp
-*.temp1800Soles_STP_Test_PassFail_Criteria_UPDATED.xlsx
+*.temp
+
+# Generated local documents/backups
+1800Soles_STP_Test_PassFail_Criteria_UPDATED*.xlsx
+users_reset_backup_*.sql
+docs/

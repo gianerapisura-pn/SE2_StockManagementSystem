@@ -1,4 +1,4 @@
-const SESSION_IDLE_MINUTES = Number(process.env.SESSION_IDLE_MINUTES || 30);
+const SESSION_IDLE_MINUTES = Number(process.env.SESSION_IDLE_MINUTES || 60);
 const SESSION_ABSOLUTE_HOURS = Number(process.env.SESSION_ABSOLUTE_HOURS || 8);
 
 function endSessionWith401(req, res, message) {

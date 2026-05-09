@@ -144,12 +144,6 @@ if (suGenderSelect) {
   suGenderSelect.addEventListener('change', () => syncSelectPlaceholderState(suGenderSelect));
 }
 
-const suRoleSelect = document.getElementById('suRole');
-if (suRoleSelect) {
-  syncSelectPlaceholderState(suRoleSelect);
-  suRoleSelect.addEventListener('change', () => syncSelectPlaceholderState(suRoleSelect));
-}
-
 function validatePasswordRules(password) {
   if (password.length < 8) return 'Password must be at least 8 characters.';
   if (!/[a-z]/.test(password)) return 'Password must include a lowercase letter.';
@@ -223,19 +217,14 @@ if (signupBtn) {
     const suffix = document.getElementById('suSuffix').value;
     const gender = document.getElementById('suGender').value;
     const phoneNumber = normalizePhoneNumber(document.getElementById('suPhone').value.trim());
-    const role = document.getElementById('suRole').value;
     const username = document.getElementById('suUsername').value.trim();
     const email = document.getElementById('suEmail').value.trim();
     const password = document.getElementById('suPass').value;
     const password2 = document.getElementById('suPass2').value;
     const agree = document.getElementById('suAgree').checked;
 
-    if (!lastName || !firstName || !middleName || !gender || !phoneNumber || !role || !username || !email || !password) {
+    if (!lastName || !firstName || !middleName || !gender || !phoneNumber || !username || !email || !password) {
       return showToast('Please complete all required fields.', false);
-    }
-
-    if (!['Admin', 'Staff'].includes(role)) {
-      return showToast('Role must be Admin or Staff.', false);
     }
 
     if (!/^\d{9}$/.test(phoneNumber)) {
@@ -256,7 +245,6 @@ if (signupBtn) {
           suffix: suffix || null,
           gender,
           phone_number: phoneNumber,
-          role,
           username,
           email,
           password,
@@ -299,6 +287,9 @@ if (forgotLink) {
   }
 })();
 
-fetch('/api/auth/me', { credentials: 'include' }).then((r) => {
-  if (r.ok) window.location.href = '/home.html';
-});
+const fromReset = new URLSearchParams(window.location.search).get('fromReset') === '1';
+if (!fromReset) {
+  fetch('/api/auth/me', { credentials: 'include' }).then((r) => {
+    if (r.ok) window.location.href = '/home.html';
+  });
+}

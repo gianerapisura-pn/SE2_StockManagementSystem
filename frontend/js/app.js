@@ -428,16 +428,15 @@ function renderArchivedItemsTable(data, page = 1) {
   tbody.querySelectorAll('[data-delete-item]').forEach((btn) => {
     btn.addEventListener('click', async (event) => {
       event.stopPropagation();
+      if (!currentUser || currentUser.role !== 'Admin') {
+        showToast('Only Admin can permanently delete archived items.', false);
+        return;
+      }
       if (!confirm('Delete this item permanently? This cannot be undone.')) return;
-
-      const adminPassword = prompt('Enter your admin password to permanently delete this item:') || '';
-      if (!adminPassword) return;
 
       try {
         await api(`/api/items/${btn.dataset.deleteItem}/permanent`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ admin_password: adminPassword })
+          method: 'DELETE'
         });
         showToast('Item permanently deleted');
         await loadInventory();
@@ -725,6 +724,19 @@ function openAddItemModal(item = null, options = {}) {
 
   const brandSelect = modalContent.querySelector('#aiBrand');
   if (brandSelect) brandSelect.value = item ? String(item.brand_id || '') : '';
+  const customBrandWrap = modalContent.querySelector('#aiCustomBrandWrap');
+  const customBrandInput = modalContent.querySelector('#aiCustomBrand');
+  const updateCustomBrandField = () => {
+    if (!customBrandWrap || !customBrandInput || !brandSelect) return;
+    const isOthers = String(brandSelect.value || '') === '5';
+    customBrandWrap.style.display = isOthers ? '' : 'none';
+    customBrandInput.required = isOthers;
+    if (!isOthers) customBrandInput.value = '';
+  };
+  if (brandSelect) {
+    brandSelect.addEventListener('change', updateCustomBrandField);
+    updateCustomBrandField();
+  }
 
   const targetInput = modalContent.querySelector('#aiTargetQty');
   if (targetInput) targetInput.value = item ? Number(item.target_qty || 1) : 1;
@@ -756,9 +768,14 @@ async function submitAddItem() {
   const sku = skuInput ? skuInput.value.trim() : '';
   const colorway = document.getElementById('aiColor').value.trim();
   const brand_id = Number(document.getElementById('aiBrand').value || 0);
+  const customBrandInput = document.getElementById('aiCustomBrand');
+  const custom_brand_name = customBrandInput ? customBrandInput.value.trim() : '';
   const target_qty = Number(document.getElementById('aiTargetQty').value || 0);
   if (!item_name || !colorway || !brand_id || !Number.isFinite(target_qty) || target_qty < 1 || (!editingItemId && !sku)) {
     return showToast('Please complete all required fields', false);
+  }
+  if (!editingItemId && brand_id === 5 && !custom_brand_name) {
+    return showToast('Please enter the brand name for Others', false);
   }
 
   try {
@@ -770,10 +787,17 @@ async function submitAddItem() {
       });
       showToast('Item updated successfully');
     } else {
-      await api('/api/items', {
+      const created = await api('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_name, sku, colorway, brand_id, target_qty: Math.floor(target_qty) })
+        body: JSON.stringify({
+          item_name,
+          sku,
+          colorway,
+          brand_id,
+          custom_brand_name: brand_id === 5 ? custom_brand_name : undefined,
+          target_qty: Math.floor(target_qty)
+        })
       });
       showToast('Item created');
     }
@@ -808,6 +832,82 @@ function closeModal() {
 }
 window.closeModal = closeModal;
 window.openAddItemModal = openAddItemModal;
+
+function requestAdminPassword(actionLabel = 'continue') {
+  return new Promise((resolve) => {
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-shell';
+    modalContent.innerHTML = `
+      <div class="modal-header">
+        <h3 style="margin:0;">Admin Verification</h3>
+        <button class="close-btn" type="button" id="adminPassCloseBtn">&times;</button>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Enter admin password to ${actionLabel}</label>
+        <div style="position:relative;">
+          <input type="password" class="input" id="adminPasswordInput" placeholder="Admin password" autofocus>
+          <i class="fa fa-eye" id="toggleAdminPassword" style="position:absolute; right:12px; top:12px; color:#b3a399; cursor:pointer"></i>
+        </div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
+        <button class="secondary-btn" type="button" id="adminPassCancelBtn">Cancel</button>
+        <button class="solid-btn" type="button" id="adminPassConfirmBtn">Confirm</button>
+      </div>
+    `;
+
+    let settled = false;
+    const settle = (value) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    openModal(modalContent);
+
+    const backdrop = document.getElementById('modalBackdrop');
+    const input = document.getElementById('adminPasswordInput');
+    const toggle = document.getElementById('toggleAdminPassword');
+    const cancelBtn = document.getElementById('adminPassCancelBtn');
+    const closeBtn = document.getElementById('adminPassCloseBtn');
+    const confirmBtn = document.getElementById('adminPassConfirmBtn');
+
+    if (toggle && input) {
+      toggle.addEventListener('click', () => {
+        const nextType = input.getAttribute('type') === 'password' ? 'text' : 'password';
+        input.setAttribute('type', nextType);
+      });
+    }
+
+    const cancel = () => {
+      closeModal();
+      settle(null);
+    };
+
+    const confirm = () => {
+      const password = (input?.value || '').trim();
+      if (!password) {
+        showToast('Admin password is required.', false);
+        return;
+      }
+      closeModal();
+      settle(password);
+    };
+
+    if (cancelBtn) cancelBtn.addEventListener('click', cancel);
+    if (closeBtn) closeBtn.addEventListener('click', cancel);
+    if (confirmBtn) confirmBtn.addEventListener('click', confirm);
+    if (input) {
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') confirm();
+      });
+    }
+    if (backdrop) {
+      backdrop.addEventListener('click', (event) => {
+        if (event.target === backdrop) settle(null);
+      }, { once: true });
+    }
+  });
+}
 
 async function openDetails(itemId) {
   const item = itemsCache.find(i => i.item_id == itemId) || archivedItemsCache.find(i => i.item_id == itemId);
@@ -916,7 +1016,13 @@ async function openDetails(itemId) {
           return;
         }
 
-        const sold = await markSold(event.target.dataset.statusPair, itemId, waitingStock);
+        const sold = await markSold(
+          event.target.dataset.statusPair,
+          itemId,
+          waitingStock,
+          availableCount,
+          () => renderStockInForm(item, null, { returnToDetailsItemId: item.item_id })
+        );
         if (!sold) {
           event.target.value = event.target.dataset.originalStatus || 'AVAILABLE';
         }
@@ -1143,13 +1249,64 @@ function renderStockInForm(item, pair = null, options = {}) {
 }
 
 
-async function markSold(pairId, itemId, isWaitingStock = false) {
+function confirmSellToZeroStock(onStockInFirst) {
+  return new Promise((resolve) => {
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-shell';
+    modalContent.innerHTML = `
+      <div class="modal-header">
+        <h3 style="margin:0;">Confirm Sale</h3>
+      </div>
+      <p style="margin:0 0 14px 0; color:#4b4038;">
+        Selling this pair will reduce available stock to 0. Do you want to continue?
+      </p>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button class="secondary-btn" type="button" id="stockInFirstBtn">Stock In First</button>
+        <button class="danger-btn" type="button" id="continueSellingBtn">Continue Selling</button>
+      </div>
+    `;
+
+    let settled = false;
+    const settle = (value) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    openModal(modalContent);
+
+    const continueBtn = document.getElementById('continueSellingBtn');
+    const stockInBtn = document.getElementById('stockInFirstBtn');
+
+    if (continueBtn) {
+      continueBtn.addEventListener('click', () => {
+        closeModal();
+        settle(true);
+      });
+    }
+
+    if (stockInBtn) {
+      stockInBtn.addEventListener('click', () => {
+        if (typeof onStockInFirst === 'function') onStockInFirst();
+        settle(false);
+      });
+    }
+  });
+}
+
+async function markSold(pairId, itemId, isWaitingStock = false, availableCount = null, onStockInFirst = null) {
   if (isWaitingStock) {
     alert('This item is in Waiting Stock and cannot be sold yet until restocked.');
     return false;
   }
 
-  if (!confirm('Mark this pair as sold?')) return false;
+  if (Number(availableCount) === 1) {
+    const shouldContinue = await confirmSellToZeroStock(onStockInFirst);
+    if (!shouldContinue) return false;
+  } else if (!confirm('Mark this pair as sold?')) {
+    return false;
+  }
+
 
   try {
     await api(`/api/pairs/${pairId}/mark-sold`, {
@@ -1522,13 +1679,10 @@ if (createStaffBtn) {
       }
 
 
-      const adminPassword = prompt('Enter your admin password to create this staff account:') || '';
-      if (!adminPassword) return;
-
       await api('/api/settings/staff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, admin_password: adminPassword })
+        body: JSON.stringify(payload)
       });
 
       showToast('Staff account created successfully.');
@@ -1573,14 +1727,16 @@ if (staffTableBody) {
 
     try {
       if (action === 'toggle-status') {
-        const adminPassword = prompt('Enter your admin password to change account status:') || '';
+        const nextStatus = Number(actionBtn.dataset.nextStatus || 0);
+        const actionLabel = nextStatus === 0 ? 'deactivate this staff account' : 'change this staff account status';
+        const adminPassword = await requestAdminPassword(actionLabel);
         if (!adminPassword) return;
 
         await api(`/api/settings/staff/${userId}/status`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            is_active: Number(actionBtn.dataset.nextStatus || 0),
+            is_active: nextStatus,
             admin_password: adminPassword
           })
         });
@@ -1589,7 +1745,7 @@ if (staffTableBody) {
       }
 
       if (action === 'send-reset') {
-        const adminPassword = prompt('Enter your admin password to send reset link:') || '';
+        const adminPassword = await requestAdminPassword('send a reset link');
         if (!adminPassword) return;
 
         await api(`/api/settings/staff/${userId}/send-reset-link`, {
@@ -2230,14 +2386,14 @@ function renderBrandDistributionChart(canvasId, data) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
-  const rows = data.length
-    ? data
+  const filtered = (data || []).filter((row) => Number(row.count || 0) > 0);
+  const rows = filtered.length
+    ? filtered
     : [
       { brand_name: 'Nike', count: 0 },
       { brand_name: 'Adidas', count: 0 },
       { brand_name: 'Puma', count: 0 },
-      { brand_name: 'New Balance', count: 0 },
-      { brand_name: 'Others', count: 0 }
+      { brand_name: 'New Balance', count: 0 }
     ];
 
   const actualValues = rows.map((row) => Number(row.count || 0));

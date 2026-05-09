@@ -1,4 +1,3 @@
-const bcrypt = require('bcrypt');
 const pool = require('../db');
 const { logActivity } = require('../utils/logger');
 const { recomputeItemStatus, isWaitingStock } = require('../utils/status');
@@ -76,9 +75,10 @@ async function getItems(req, res) {
 }
 
 async function createItem(req, res) {
-  const { item_name, sku, colorway, brand_id, target_qty } = req.body;
+  const { item_name, sku, colorway, brand_id, target_qty, custom_brand_name } = req.body;
+  const parsedBrandId = Number(brand_id);
   const parsedTargetQty = Number(target_qty);
-  if (!item_name || !sku || !colorway || !brand_id || !Number.isFinite(parsedTargetQty) || parsedTargetQty < 1) {
+  if (!item_name || !sku || !colorway || !Number.isInteger(parsedBrandId) || parsedBrandId < 1 || !Number.isFinite(parsedTargetQty) || parsedTargetQty < 1) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
@@ -86,10 +86,36 @@ async function createItem(req, res) {
     const [[dup]] = await pool.query('SELECT item_id FROM items WHERE sku = ? AND is_deleted = 0', [sku]);
     if (dup) return res.status(409).json({ error: 'Item with this SKU already exists' });
 
+    let resolvedBrandId = parsedBrandId;
+    if (parsedBrandId === 5) {
+      const normalizedCustomBrand = String(custom_brand_name || '').trim();
+      if (!normalizedCustomBrand) {
+        return res.status(400).json({ error: 'Brand name is required when selecting Others' });
+      }
+
+      const [[existingBrand]] = await pool.query(
+        `SELECT brand_id
+         FROM brands
+         WHERE LOWER(brand_name) = LOWER(?)
+         LIMIT 1`,
+        [normalizedCustomBrand]
+      );
+
+      if (existingBrand) {
+        resolvedBrandId = Number(existingBrand.brand_id);
+      } else {
+        const [insertBrandResult] = await pool.query(
+          `INSERT INTO brands (brand_name) VALUES (?)`,
+          [normalizedCustomBrand]
+        );
+        resolvedBrandId = Number(insertBrandResult.insertId);
+      }
+    }
+
     const [result] = await pool.query(
       `INSERT INTO items (item_name, sku, colorway, brand_id, target_qty, status, item_status, last_movement_type, last_movement_at)
        VALUES (?, ?, ?, ?, ?, 'WAITING_STOCK', 'ACTIVE', 'CREATED', NOW())`,
-      [item_name, sku, colorway, brand_id, Math.floor(parsedTargetQty)]
+      [item_name, sku, colorway, resolvedBrandId, Math.floor(parsedTargetQty)]
     );
 
     const itemId = result.insertId;
@@ -302,15 +328,10 @@ async function markItemSold(req, res) {
 
 async function permanentDeleteItem(req, res) {
   const { itemId } = req.params;
-  const adminPassword = String((req.body || {}).admin_password || '');
 
   try {
-    if (!adminPassword) {
-      return res.status(400).json({ error: 'Admin password is required to permanently delete an item.' });
-    }
-
     const [[admin]] = await pool.query(
-      `SELECT password_hash
+      `SELECT user_id
        FROM users
        WHERE user_id = ? AND role = 'Admin' AND is_active = 1
        LIMIT 1`,
@@ -319,11 +340,6 @@ async function permanentDeleteItem(req, res) {
 
     if (!admin) {
       return res.status(403).json({ error: 'Only active Admin accounts can permanently delete items.' });
-    }
-
-    const validPassword = await bcrypt.compare(adminPassword, admin.password_hash);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid admin password.' });
     }
 
     const [[item]] = await pool.query(

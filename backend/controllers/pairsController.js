@@ -16,10 +16,19 @@ function formatSizeGender(usSize, gender) {
 }
 
 async function nextPairCode() {
-  const [[row]] = await pool.query(`SELECT pair_code FROM pairs ORDER BY pair_id DESC LIMIT 1`);
+  const [[row]] = await pool.query(
+    `SELECT pair_code
+     FROM pairs
+     WHERE pair_code REGEXP '^P-[0-9]+$'
+     ORDER BY CAST(SUBSTRING(pair_code, 3) AS UNSIGNED) DESC
+     LIMIT 1`
+  );
+
   if (!row || !row.pair_code) return 'P-001';
-  const num = parseInt(row.pair_code.replace(/\D/g, ''), 10) + 1;
-  return `P-${String(num).padStart(3, '0')}`;
+
+  const current = Number.parseInt(String(row.pair_code).slice(2), 10);
+  const next = Number.isFinite(current) ? current + 1 : 1;
+  return `P-${String(next).padStart(3, '0')}`;
 }
 
 async function ensureActiveItem(itemId) {

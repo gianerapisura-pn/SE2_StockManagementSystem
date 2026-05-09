@@ -201,10 +201,12 @@ async function getBrandDistribution() {
          END
        ), 0) AS count
      FROM brands b
-     LEFT JOIN items i ON i.brand_id = b.brand_id
-     LEFT JOIN pairs p ON p.item_id = i.item_id
-     GROUP BY b.brand_id, b.brand_name
-     ORDER BY b.brand_id ASC`
+      LEFT JOIN items i ON i.brand_id = b.brand_id
+      LEFT JOIN pairs p ON p.item_id = i.item_id
+      WHERE b.brand_name <> 'Others'
+      GROUP BY b.brand_id, b.brand_name
+      HAVING count > 0
+      ORDER BY b.brand_id ASC`
   );
 
   return rows.map((row) => ({

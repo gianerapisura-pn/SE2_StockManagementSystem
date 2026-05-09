@@ -18,8 +18,22 @@ function validatePasswordRules(password) {
   return '';
 }
 
+function toggleVisibility(triggerId, inputId) {
+  const trigger = document.getElementById(triggerId);
+  const input = document.getElementById(inputId);
+  if (!trigger || !input) return;
+
+  trigger.addEventListener('click', () => {
+    const nextType = input.getAttribute('type') === 'password' ? 'text' : 'password';
+    input.setAttribute('type', nextType);
+  });
+}
+
+toggleVisibility('toggleRpPass1', 'rpPass');
+toggleVisibility('toggleRpPass2', 'rpPass2');
+
 async function resetPassword() {
-  const token = new URLSearchParams(window.location.search).get('token');
+  const token = (new URLSearchParams(window.location.search).get('token') || '').trim();
   const newPassword = document.getElementById('rpPass').value;
   const confirmPassword = document.getElementById('rpPass2').value;
 
@@ -39,7 +53,7 @@ async function resetPassword() {
     if (!res.ok) throw new Error(body.error || 'Failed to reset password.');
 
     showToast('Password reset successful! Redirecting to login...');
-    setTimeout(() => { window.location.href = '/index.html'; }, 1200);
+    setTimeout(() => { window.location.href = '/index.html?fromReset=1'; }, 1200);
   } catch (err) {
     showToast(err.message, false);
   }

@@ -47,9 +47,9 @@ async function sendResetEmail(email, token) {
   await transporter.sendMail({
     from,
     to: cleanEnv(email).toLowerCase(),
-    subject: '1800 Soles - Password Reset',
-    text: `Use this link to reset your password: ${resetUrl}\nThis link expires in 1 hour.`,
-    html: `<p>Use this link to reset your password:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>This link expires in 1 hour.</p>`
+    subject: '1800Soles Password Reset Verification',
+    text: `Hello,\n\nWe received a request to reset the password for your 1800Soles Stock Management System account.\n\nTo verify your request and create a new password, please click the link below:\n\n${resetUrl}\n\nThis link will expire in 1 hour for security purposes. If you did not request a password reset, please ignore this email or contact your system administrator immediately.\n\nThank you,\n1800Soles Stock Management System`,
+    html: `<p>Hello,</p><p>We received a request to reset the password for your 1800Soles Stock Management System account.</p><p>To verify your request and create a new password, please click the link below:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>This link will expire in 1 hour for security purposes. If you did not request a password reset, please ignore this email or contact your system administrator immediately.</p><p>Thank you,<br>1800Soles Stock Management System</p>`
   });
 }
 
@@ -203,7 +203,7 @@ async function getStaffList(_req, res) {
 }
 
 async function createStaffAccount(req, res) {
-  const { admin_password, username, email } = req.body;
+  const { username, email } = req.body;
   const last_name = String(req.body.last_name || '').trim();
   const first_name = String(req.body.first_name || '').trim();
   const middle_name = String(req.body.middle_name || '').trim();
@@ -212,9 +212,6 @@ async function createStaffAccount(req, res) {
   const phone_number = normalizePhoneNumber(req.body.phone_number);
 
   try {
-    const stepUpError = await verifyAdminPassword(req, admin_password);
-    if (stepUpError) return res.status(401).json({ error: stepUpError });
-
     if (!last_name || !first_name || !middle_name || !gender || !phone_number || !username || !email) {
       return res.status(400).json({ error: 'Last name, first name, middle name, gender, phone number, username, and email are required.' });
     }
@@ -441,7 +438,7 @@ async function sendStaffResetLink(req, res) {
 
     await pool.query(
       `INSERT INTO password_resets (user_id, token_hash, expires_at)
-       VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))`,
+       VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 1 HOUR))`,
       [staff.user_id, tokenHash]
     );
 

@@ -9,7 +9,6 @@ const { clearLoginRateLimit } = require('../middleware/loginRateLimit');
 
 const VALID_SUFFIXES = new Set(['Jr.', 'II', 'III']);
 const VALID_GENDERS = new Set(['Male', 'Female']);
-const VALID_ROLES = new Set(['Admin', 'Staff']);
 const MAX_LOGIN_ATTEMPTS = Number(process.env.MAX_LOGIN_ATTEMPTS || 5);
 const LOCKOUT_MINUTES = Number(process.env.LOGIN_LOCKOUT_MINUTES || 15);
 
@@ -112,9 +111,9 @@ async function sendResetEmail(email, token) {
   await transporter.sendMail({
     from,
     to: cleanEnv(email).toLowerCase(),
-    subject: '1800 Soles - Password Reset',
-    text: `Use this link to reset your password: ${resetUrl}\nThis link expires in 1 hour.`,
-    html: `<p>Use this link to reset your password:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>This link expires in 1 hour.</p>`
+    subject: '1800Soles Password Reset Verification',
+    text: `Hello,\n\nWe received a request to reset the password for your 1800Soles Stock Management System account.\n\nTo verify your request and create a new password, please click the link below:\n\n${resetUrl}\n\nThis link will expire in 1 hour for security purposes. If you did not request a password reset, please ignore this email or contact your system administrator immediately.\n\nThank you,\n1800Soles Stock Management System`,
+    html: `<p>Hello,</p><p>We received a request to reset the password for your 1800Soles Stock Management System account.</p><p>To verify your request and create a new password, please click the link below:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>This link will expire in 1 hour for security purposes. If you did not request a password reset, please ignore this email or contact your system administrator immediately.</p><p>Thank you,<br>1800Soles Stock Management System</p>`
   });
 }
 
@@ -136,7 +135,6 @@ async function registerStatus(_req, res) {
 async function register(req, res) {
   const { username, email, password, agree } = req.body;
   const { last_name, first_name, middle_name } = normalizeNameParts(req.body);
-  const roleRaw = String(req.body.role || '').trim();
   const suffix = String(req.body.suffix || '').trim() || null;
   const gender = String(req.body.gender || '').trim();
   const phone_number = normalizePhoneNumber(req.body.phone_number);
@@ -151,26 +149,14 @@ async function register(req, res) {
       return res.status(403).json({ error: 'Public signup is disabled. Contact your admin to create an account.' });
     }
 
-    const role = isBootstrap ? roleRaw : (roleRaw || 'Staff');
+    const role = isBootstrap ? 'Admin' : 'Staff';
 
     if (isBootstrap && !agree) {
       return res.status(400).json({ error: 'Please accept terms and conditions.' });
     }
 
-    if (!last_name || !first_name || !middle_name || !role || !username || !email || !password || !gender || !phone_number) {
-      return res.status(400).json({ error: 'Last name, first name, middle name, role, username, email, gender, phone number, and password are required.' });
-    }
-
-    if (!VALID_ROLES.has(role)) {
-      return res.status(400).json({ error: 'Role must be Admin or Staff.' });
-    }
-
-    if (isBootstrap && role !== 'Admin') {
-      return res.status(400).json({ error: 'The first account must be an Admin.' });
-    }
-
-    if (!isBootstrap && role !== 'Staff') {
-      return res.status(400).json({ error: 'Only Staff accounts can be created from this form.' });
+    if (!last_name || !first_name || !middle_name || !username || !email || !password || !gender || !phone_number) {
+      return res.status(400).json({ error: 'Last name, first name, middle name, username, email, gender, phone number, and password are required.' });
     }
 
     if (suffix && !VALID_SUFFIXES.has(suffix)) {
@@ -347,7 +333,7 @@ async function forgotPassword(req, res) {
 
     await pool.query(
       `INSERT INTO password_resets (user_id, token_hash, expires_at)
-       VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))`,
+       VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 1 HOUR))`,
       [user.user_id, tokenHash]
     );
 
@@ -374,7 +360,7 @@ async function resetPassword(req, res) {
       `SELECT pr.reset_id, pr.user_id
        FROM password_resets pr
        JOIN users u ON u.user_id = pr.user_id
-       WHERE pr.token_hash = ? AND pr.used_at IS NULL AND pr.expires_at > NOW() AND u.is_active = 1
+       WHERE pr.token_hash = ? AND pr.used_at IS NULL AND pr.expires_at > UTC_TIMESTAMP() AND u.is_active = 1
        ORDER BY pr.reset_id DESC
        LIMIT 1`,
       [tokenHash]
