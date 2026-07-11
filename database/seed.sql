@@ -19,27 +19,27 @@ VALUES
 SET @item1 := (SELECT item_id FROM items WHERE sku='DC7770-160');
 SET @item2 := (SELECT item_id FROM items WHERE sku='ADI-SPZL-001');
 
-INSERT INTO pairs (pair_code, item_id, us_size, gender, pair_condition, cost_price, selling_price, status, sold_at, sold_price)
+INSERT INTO pairs (pair_code, item_id, us_size, gender, pair_condition, cost_price, selling_price, remarks, status, sold_at, sold_price)
 VALUES
-('P-001', @item1, '8', 'Male', 'New', 2400.00, 3200.00, 'AVAILABLE', NULL, NULL),
-('P-002', @item1, '8', 'Male', 'New', 2400.00, 3200.00, 'AVAILABLE', NULL, NULL),
-('P-003', @item1, '8', 'Male', 'New', 2400.00, 3200.00, 'AVAILABLE', NULL, NULL),
-('P-004', @item1, '8.5', 'Male', 'New', 2400.00, 3200.00, 'AVAILABLE', NULL, NULL),
-('P-005', @item1, '8.5', 'Male', 'New', 2400.00, 3200.00, 'AVAILABLE', NULL, NULL),
-('P-006', @item1, '8.5', 'Male', 'New', 2400.00, 3200.00, 'AVAILABLE', NULL, NULL),
-('P-007', @item1, '9', 'Male', 'New', 2400.00, 3200.00, 'AVAILABLE', NULL, NULL),
-('P-008', @item1, '9', 'Male', 'New', 2400.00, 3200.00, 'AVAILABLE', NULL, NULL),
-('P-009', @item1, '9', 'Male', 'New', 2400.00, 3200.00, 'AVAILABLE', NULL, NULL),
-('P-018', @item1, '8.5', 'Male', 'New', 2400.00, 3200.00, 'SOLD', '2026-04-19 10:10:00', 3200.00),
-('P-019', @item1, '9', 'Male', 'New', 2400.00, 3200.00, 'SOLD', '2026-04-20 10:11:00', 3200.00),
-('P-010', @item2, '8', 'Male', 'New', 2500.00, 3300.00, 'AVAILABLE', NULL, NULL),
-('P-011', @item2, '8', 'Male', 'New', 2500.00, 3300.00, 'AVAILABLE', NULL, NULL),
-('P-012', @item2, '8', 'Male', 'New', 2500.00, 3300.00, 'AVAILABLE', NULL, NULL),
-('P-013', @item2, '8.5', 'Male', 'New', 2500.00, 3300.00, 'AVAILABLE', NULL, NULL),
-('P-014', @item2, '8.5', 'Male', 'New', 2500.00, 3300.00, 'AVAILABLE', NULL, NULL),
-('P-015', @item2, '8.5', 'Male', 'New', 2500.00, 3300.00, 'AVAILABLE', NULL, NULL),
-('P-016', @item2, '9', 'Male', 'New', 2500.00, 3300.00, 'AVAILABLE', NULL, NULL),
-('P-017', @item2, '9', 'Male', 'New', 2500.00, 3300.00, 'AVAILABLE', NULL, NULL);
+('P-001', @item1, '8', 'Male', 'New', 2400.00, 3200.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-002', @item1, '8', 'Male', 'New', 2400.00, 3200.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-003', @item1, '8', 'Male', 'New', 2400.00, 3200.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-004', @item1, '8.5', 'Male', 'New', 2400.00, 3200.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-005', @item1, '8.5', 'Male', 'New', 2400.00, 3200.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-006', @item1, '8.5', 'Male', 'New', 2400.00, 3200.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-007', @item1, '9', 'Male', 'New', 2400.00, 3200.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-008', @item1, '9', 'Male', 'New', 2400.00, 3200.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-009', @item1, '9', 'Male', 'New', 2400.00, 3200.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-018', @item1, '8.5', 'Male', 'New', 2400.00, 3200.00, NULL, 'SOLD', '2026-04-19 10:10:00', 3200.00),
+('P-019', @item1, '9', 'Male', 'New', 2400.00, 3200.00, NULL, 'SOLD', '2026-04-20 10:11:00', 3200.00),
+('P-010', @item2, '8', 'Male', 'New', 2500.00, 3300.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-011', @item2, '8', 'Male', 'New', 2500.00, 3300.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-012', @item2, '8', 'Male', 'New', 2500.00, 3300.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-013', @item2, '8.5', 'Male', 'New', 2500.00, 3300.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-014', @item2, '8.5', 'Male', 'New', 2500.00, 3300.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-015', @item2, '8.5', 'Male', 'New', 2500.00, 3300.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-016', @item2, '9', 'Male', 'New', 2500.00, 3300.00, NULL, 'AVAILABLE', NULL, NULL),
+('P-017', @item2, '9', 'Male', 'New', 2500.00, 3300.00, NULL, 'AVAILABLE', NULL, NULL);
 
 -- Optional activity seed: inserts only if at least one user exists.
 -- This avoids FK errors when running with zero default users.

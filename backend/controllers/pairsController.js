@@ -66,7 +66,7 @@ async function getPairsByItem(req, res) {
   const { itemId } = req.params;
   try {
     const [pairs] = await pool.query(
-      `SELECT pair_id, pair_code, us_size, gender, pair_condition, cost_price, selling_price, status, sold_at, sold_price
+      `SELECT pair_id, pair_code, us_size, gender, pair_condition, cost_price, selling_price, remarks, status, sold_at, sold_price
        FROM pairs
        WHERE item_id = ? AND is_deleted = 0`,
       [itemId]
@@ -80,8 +80,9 @@ async function getPairsByItem(req, res) {
 
 async function createPair(req, res) {
   const { itemId } = req.params;
-  const { us_size, gender, pair_condition, cost_price, selling_price } = req.body;
+  const { us_size, gender, pair_condition, cost_price, selling_price, remarks } = req.body;
   const normalizedGender = normalizeGender(gender);
+  const normalizedRemarks = String(remarks || '').trim() || null;
 
   if (!us_size || !normalizedGender || !pair_condition || !cost_price || !selling_price) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -95,9 +96,9 @@ async function createPair(req, res) {
 
     const code = await nextPairCode();
     const [result] = await pool.query(
-      `INSERT INTO pairs (pair_code, item_id, us_size, gender, pair_condition, cost_price, selling_price)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [code, itemId, String(us_size).trim(), normalizedGender, pair_condition, cost_price, selling_price]
+      `INSERT INTO pairs (pair_code, item_id, us_size, gender, pair_condition, cost_price, selling_price, remarks)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [code, itemId, String(us_size).trim(), normalizedGender, pair_condition, cost_price, selling_price, normalizedRemarks]
     );
 
     await pool.query(
@@ -125,8 +126,9 @@ async function createPair(req, res) {
 
 async function updatePair(req, res) {
   const { pairId } = req.params;
-  const { us_size, gender, pair_condition, cost_price, selling_price } = req.body;
+  const { us_size, gender, pair_condition, cost_price, selling_price, remarks } = req.body;
   const normalizedGender = normalizeGender(gender);
+  const normalizedRemarks = String(remarks || '').trim() || null;
 
   if (!us_size || !normalizedGender || !pair_condition || !cost_price || !selling_price) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -150,9 +152,9 @@ async function updatePair(req, res) {
 
     await pool.query(
       `UPDATE pairs
-       SET us_size = ?, gender = ?, pair_condition = ?, cost_price = ?, selling_price = ?, updated_at = NOW()
+       SET us_size = ?, gender = ?, pair_condition = ?, cost_price = ?, selling_price = ?, remarks = ?, updated_at = NOW()
        WHERE pair_id = ? AND is_deleted = 0`,
-      [String(us_size).trim(), normalizedGender, pair_condition, cost_price, selling_price, pairId]
+      [String(us_size).trim(), normalizedGender, pair_condition, cost_price, selling_price, normalizedRemarks, pairId]
     );
 
     await pool.query(

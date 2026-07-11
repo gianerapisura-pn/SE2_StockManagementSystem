@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS pairs (
   pair_condition VARCHAR(30) NOT NULL DEFAULT 'New',
   cost_price DECIMAL(10,2) NOT NULL,
   selling_price DECIMAL(10,2) NOT NULL,
+  remarks VARCHAR(255) NULL,
   status ENUM('AVAILABLE','SOLD') NOT NULL DEFAULT 'AVAILABLE',
   sold_at DATETIME NULL,
   sold_price DECIMAL(10,2) NULL,
@@ -168,7 +169,8 @@ CREATE TABLE IF NOT EXISTS pairs (
 
 
 ALTER TABLE pairs
-  ADD COLUMN IF NOT EXISTS gender ENUM('Male','Female') NOT NULL DEFAULT 'Male' AFTER us_size;
+  ADD COLUMN IF NOT EXISTS gender ENUM('Male','Female') NOT NULL DEFAULT 'Male' AFTER us_size,
+  ADD COLUMN IF NOT EXISTS remarks VARCHAR(255) NULL AFTER selling_price;
 
 UPDATE pairs
 SET gender = CASE

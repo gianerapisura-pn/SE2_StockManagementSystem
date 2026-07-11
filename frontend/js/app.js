@@ -8,6 +8,15 @@ function showToast(msg, ok = true) {
   setTimeout(() => toast.style.display = 'none', 2400);
 }
 
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function api(url, options = {}) {
   const res = await fetch(url, { credentials: 'include', ...options });
   const body = await res.json().catch(() => ({}));
@@ -821,7 +830,10 @@ function openModal(content) {
   }
 
   const backdrop = document.getElementById('modalBackdrop');
-  if (backdrop) backdrop.style.display = 'flex';
+  if (backdrop) {
+    backdrop.style.alignItems = 'flex-start';
+    backdrop.style.display = 'flex';
+  }
 }
 function closeModal() {
   const backdrop = document.getElementById('modalBackdrop');
@@ -832,6 +844,57 @@ function closeModal() {
 }
 window.closeModal = closeModal;
 window.openAddItemModal = openAddItemModal;
+
+function requestConfirmation({ title, message, confirmText = 'Confirm', danger = false } = {}) {
+  return new Promise((resolve) => {
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-shell';
+    modalContent.innerHTML = `
+      <div class="modal-header">
+        <h3 style="margin:0;">${escapeHtml(title || 'Confirm Action')}</h3>
+        <button class="close-btn" type="button" id="confirmCloseBtn">&times;</button>
+      </div>
+      <p style="margin:0 0 14px 0; color:#4b4038;">${escapeHtml(message || 'Are you sure you want to continue?')}</p>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button class="secondary-btn" type="button" id="confirmCancelBtn">Cancel</button>
+        <button class="${danger ? 'danger-btn' : 'solid-btn'}" type="button" id="confirmActionBtn">${escapeHtml(confirmText)}</button>
+      </div>
+    `;
+
+    let settled = false;
+    const settle = (value) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    openModal(modalContent);
+    const backdrop = document.getElementById('modalBackdrop');
+    if (backdrop) backdrop.style.alignItems = 'center';
+
+    const cancel = () => {
+      closeModal();
+      settle(false);
+    };
+    const confirm = () => {
+      closeModal();
+      settle(true);
+    };
+
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+    const closeBtn = document.getElementById('confirmCloseBtn');
+    const confirmBtn = document.getElementById('confirmActionBtn');
+
+    if (cancelBtn) cancelBtn.addEventListener('click', cancel);
+    if (closeBtn) closeBtn.addEventListener('click', cancel);
+    if (confirmBtn) confirmBtn.addEventListener('click', confirm);
+    if (backdrop) {
+      backdrop.addEventListener('click', (event) => {
+        if (event.target === backdrop) settle(false);
+      }, { once: true });
+    }
+  });
+}
 
 function requestAdminPassword(actionLabel = 'continue') {
   return new Promise((resolve) => {
@@ -1062,6 +1125,7 @@ async function openDetails(itemId) {
           <td>${p.pair_condition}</td>
           <td>${formatPeso(p.cost_price)}</td>
           <td>${formatPeso(p.selling_price)}</td>
+          <td>${escapeHtml(p.remarks || '-')}</td>
           <td>
             <select class="pair-status-select ${p.status === 'AVAILABLE' ? 'status-available' : 'status-sold'}" data-status-pair="${p.pair_id}" data-original-status="${p.status}" ${statusDisabled ? 'disabled' : ''}>
               <option value="AVAILABLE" ${p.status === 'AVAILABLE' ? 'selected' : ''} style="color:#1f7a4e;">Available</option>
@@ -1143,7 +1207,12 @@ async function openDetails(itemId) {
       archiveItemBtn.title = 'Item is already archived';
     } else {
       archiveItemBtn.addEventListener('click', async () => {
-        if (!confirm('Archive this item? You can restore it later from Archived tab.')) return;
+        const confirmed = await requestConfirmation({
+          title: 'Archive Item',
+          message: 'Archive this item? You can restore it later from Archived tab.',
+          confirmText: 'Archive Item'
+        });
+        if (!confirmed) return;
         try {
           await api(`/api/items/${item.item_id}/archive`, { method: 'PUT' });
           showToast('Item archived');
@@ -1194,6 +1263,9 @@ function renderStockInForm(item, pair = null, options = {}) {
   const sellInput = modalContent.querySelector('#siSell');
   if (sellInput) sellInput.value = pair ? Number(pair.selling_price) : '';
 
+  const remarksInput = modalContent.querySelector('#siRemarks');
+  if (remarksInput) remarksInput.value = pair ? (pair.remarks || '') : '';
+
   modalContent.querySelectorAll('[data-close-modal]').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (returnToDetailsItemId) {
@@ -1216,7 +1288,8 @@ function renderStockInForm(item, pair = null, options = {}) {
       gender: document.getElementById('siGender').value,
       pair_condition: document.getElementById('siCondition').value,
       cost_price: Number(document.getElementById('siCost').value),
-      selling_price: Number(document.getElementById('siSell').value)
+      selling_price: Number(document.getElementById('siSell').value),
+      remarks: document.getElementById('siRemarks').value.trim()
     };
 
     if (!payload.us_size || !payload.gender || !payload.pair_condition || !payload.cost_price || !payload.selling_price) {
@@ -1303,8 +1376,14 @@ async function markSold(pairId, itemId, isWaitingStock = false, availableCount =
   if (Number(availableCount) === 1) {
     const shouldContinue = await confirmSellToZeroStock(onStockInFirst);
     if (!shouldContinue) return false;
-  } else if (!confirm('Mark this pair as sold?')) {
-    return false;
+  } else {
+    const confirmed = await requestConfirmation({
+      title: 'Mark Pair as Sold',
+      message: 'Mark this pair as sold?',
+      confirmText: 'Mark Sold',
+      danger: true
+    });
+    if (!confirmed) return false;
   }
 
 
